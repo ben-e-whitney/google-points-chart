@@ -1,0 +1,58 @@
+\RequirePackage[l2tabu,orthodox]{nag}%complains if bad practices are used
+%if nag is included in the actual .tex, it's supposed to go before the documentclass
+\RequirePackage[all,error]{onlyamsmath} 
+\RequirePackage{amsmath,amssymb}%American Mathematical Society
+\RequirePackage{array}%for things like >{\bfseries} in tabular environments
+\RequirePackage{enumerate}%to easily allow specifying 1. vs. (a) vs. <i> etc. in enumerate environments
+\RequirePackage{cprotect}%for verbatim in captions
+\RequirePackage{fancyhdr}%for the headers
+\RequirePackage{lastpage}%for Page 1 of 12 in the footer
+\RequirePackage{fixltx2e}%I believe this allows for \(math\) in section headings
+\RequirePackage[margin=3cm]{geometry}%for page margins
+\RequirePackage{graphicx}%for including graphics
+\RequirePackage{hyperref}%maybe should be placed at very end
+\RequirePackage{lmodern}%``better i18n Postscript version of Knuth's cm fonts"
+\RequirePackage{microtype}%improves typography; lots of options to investigate
+%\RequirePackage{minted}
+\RequirePackage{nicefrac}%for small fractions
+\RequirePackage[parfill]{parskip}%new paragraphs are marked with a blank line and no indentation
+\RequirePackage{minted}
+\RequirePackage{upquote}
+\AtBeginDocument{%
+\def\PYZsq{\textquotesingle}%
+}
+\RequirePackage[english]{isodate}
+\isodate
+
+%\RequirePackage[usenames,dvipsnames]{color}%for now special named colors aren't being used
+%\RequirePackage{color}
+%%these match the MATALB settings
+%\definecolor{StringColor}{RGB}{160,32,240}
+%\definecolor{CommentColor}{RGB}{34,139,34}
+%\definecolor{KeywordColor}{RGB}{0,0,255}
+%\lstdefinestyle{matlabcolor}{language=Matlab,basicstyle=\small\ttfamily,keywordstyle=\color{KeywordColor},commentstyle=\color{CommentColor},stringstyle=\color{StringColor}}
+%\newcommand{\matlabinline}[1]{\lstinline[style=matlabcolor]{#1}}
+%%can't get this to work:
+%%\newenvironment{matlablisting}{\lstlisting[style=matlabcolor]}{\endlstlisting}
+%\newcommand{\matlabinput}[1]{\lstinputlisting[style=matlabcolor]{#1}}
+
+
+\pagestyle{fancy}
+\lhead{}
+\chead{}
+\rhead{}
+\lfoot{\@date}
+\cfoot{}
+\rfoot{Page \thepage~of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+%to drop the header and get a title on the first page
+\fancypagestyle{titlepage}{%
+\fancyhf{}% clear all header and footer fields
+\lfoot{\@author}
+%\cfoot{}
+\rfoot{Page \thepage~of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+}
