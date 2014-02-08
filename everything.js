@@ -1,5 +1,4 @@
-//Last updated 2013-08-30 by Ben Whitney // ben.e.whitney@post.harvard.edu
-
+//Last updated 2014-02-08 by Ben Whitney // ben.e.whitney@post.harvard.edu
 var pseudoGlobalsBuilder = function() {
   //Better to deal with a hard-coded value than to crowd the named data ranges with one of these for each cycle.
   this.POINTS_TOTAL_CELL = 'G42';
@@ -121,9 +120,15 @@ var pseudoGlobalsBuilder = function() {
     this.fullName = info['Co-oper'];
     this.emailAddress = info['Email Address'];
     //Remove all non-digit characters.
-    this.phoneNumber = String(info['Cell Phone Number']).replace(/\D/g,'');;
+    this.phoneNumber = String(info['Cell Phone Number']).replace(/\D/g,'');
     this.textAddress = this.phoneNumber+'@'+that.GATEWAYS[info['Wireless Carrier']];
-    this.birthday = info['Birthday'];
+    //TODO: scrappy. Not sure this is the best way to do this. Maybe error handling in addToGoogleContacts?
+    //Will this mess up birthday wishes?
+    if (info['Birthday']) {
+      this.birthday = new Date(info['Birthday']);
+    } else {
+      this.birthday = null;
+    }
     //Not defining these methods in the prototype because I ran into problems trying to get the 'this' keyword to refer to
     //the Cooper object calling the method.
     this.loanBalanceRow = 2+this.index;
@@ -362,6 +367,8 @@ var pseudoGlobalsBuilder = function() {
       };
     })(col, chart, pointValues, this);}
   this.POINTS_STEWARD = this.Cooper({'Stewardship': 'Points'});
+  //TODO: check that POINTS_STEWARD has a vaild email address. This is relied on in
+  //POINTS_UTILITIES.sendEmail.
   return this;
 };
 
@@ -616,7 +623,7 @@ var UI_BUILDERS = {
 
     var introLabelHeight = 40;
     var overallWidth = 1.25*(this.DEFAULTS.shortUserInputLabelWidth+this.DEFAULTS.textBoxWidth);
-    var overallHeight = 135;
+    var overallHeight = 145;
 
     var uiAppInstance = UiApp.createApplication()
       .setWidth(overallWidth)
@@ -1096,7 +1103,7 @@ var POINTS_UTILITIES = {
   //  var x = 0;
   //  UI_BUILDERS.userSplitsName(); //A function that creates a UiInstance and has a SubmitButton.
   //  x += 1;
-  //Before the user hits the SubmitButton, x will be incremeted! This causes problems when we expect to be able
+  //Before the user hits the SubmitButton, x will be incremented! This causes problems when we expect to be able
   //to access the responses (via ScriptDb) in the lines following the UI_BUILDERS.userSplitsName call.
   waitForUIResponse: function(identifierValue) {
     //As of right now, identifierValue isn't actually used. It's a holdover from when we used ScriptDb.
@@ -1119,6 +1126,30 @@ var POINTS_UTILITIES = {
     } else {
       return Utilities.jsonParse(userResponses);
     }
+    return;
+  },
+
+  sendEmail: function(recipient, subject, body, options) {
+    //Wrapper for MailApp.sendEmail. Catches errors in sending the message. If one occurs,
+    //emails the Points Steward with an error message. This relies on the Points Steward
+    //having a valid email address! TODO: which is not currently checked.
+    var email_prefix = '[Points] '
+    for (var i = 0, divider = ''; i < 25; i++) {
+      divider += '-';
+    }
+    try {
+      MailApp.sendEmail(recipient, email_prefix+subject, body, options);
+    }
+    catch (e) {
+      MailApp.sendEmail(PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress,
+        email_prefix+'Error in Sending Email',
+        'ERROR: '+String(e)+'\n'+divider+'\n'+
+        'RECIPIENT: '+recipient+'\n'+divider+'\n'+
+        'SUBJECT: '+subject+'\n'+divider+'\n'+
+        'BODY: '+body+'\n'+divider+'\n'+
+        'OPTIONS: '+String(options),
+        {});
+    }
   }
 };
 
@@ -1126,6 +1157,7 @@ var POINTS_UTILITIES = {
 function onOpen() {
   //An entry of null makes a line separator.
   menuEntries = [
+    {name:'Grant permissions'              , functionName:'grantPermissions'}     , null,
     {name:'Report an absence'              , functionName:'processAbsence'}       , null,
     {name:'Take or repay a loan'           , functionName:'processLoan'}          , null,
     {name:'Send a reminder'                , functionName:'userInitiatedReminder'}, null,
@@ -1136,6 +1168,10 @@ function onOpen() {
   //Not using PSEUDO_GLOBALS.SPREADSHEET potentially saves us some time here. It would be reasonable to call
   //pseudoGlobalsBuilder (including saving it to the cache) after adding the menu, though.
   SpreadsheetApp.getActiveSpreadsheet().addMenu('Co-op', menuEntries);
+}
+
+function onEdit() {
+  findChoreSums();
 }
 
 function userInitiatedReminder() {
@@ -1160,7 +1196,7 @@ function userInitiatedReminder() {
   }
   UI_BUILDERS.getMessage('Please type a nice message for me to send:', 20);
   userResponses = POINTS_UTILITIES.waitForUIResponse('UI_BUILDERS.getMessage');
-  MailApp.sendEmail(signUpCell.signUpCooper.textAddress, signUpCell.choreName+' Reminder', userResponses.message,
+  POINTS_UTILITIES.sendEmail(signUpCell.signUpCooper.textAddress, signUpCell.choreName+' Reminder', userResponses.message,
     {cc: PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress});
   UI_BUILDERS.displayMessage('Just sent the message to '+signUpCell.signUpCooper.originalName+'. Thanks.', 20);
 }
@@ -1194,8 +1230,12 @@ function addToGoogleContacts() {
     }
     //Date's getMonth method returns a value between 0 and 11, inclusive, so we don't have to make adjustments
     //when using it for array indexing.
-    contact.addDate(ContactsApp.Field.BIRTHDAY, monthValues[cooper.birthday.getMonth()],
-      cooper.birthday.getDate(), cooper.birthday.getFullYear());
+    //TODO: scrappy data checking here. Figure out how to best do this. Right now cooper.birthday is `null`
+    //if their entry on 'Basic Data' was blank.
+    if (cooper.birthday) {
+      contact.addDate(ContactsApp.Field.BIRTHDAY, monthValues[cooper.birthday.getMonth()],
+        cooper.birthday.getDate(), cooper.birthday.getFullYear());
+    }
     contactGroup.addContact(contact);
   }
 
@@ -1284,7 +1324,7 @@ function processLoan() {
       cooper.loanBalance += userResponses.loanAmount;
       loanRange.setValue(newLoan);
       //TODO: point/points plural thing here as well.
-      MailApp.sendEmail(PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress, 'Loan Change for '+cooper.originalName,
+      POINTS_UTILITIES.sendEmail(PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress, 'Loan Change for '+cooper.originalName,
       cooper.originalName+' is '+POINTS_UTILITIES.getLoanVerb(newLoan)+' '+String(Math.abs(userResponses.loanAmount))+
         ' points for a total loan of '+String(newLoan)+' points in Cycle '+String(savedCycleNum)+
         '. Total balance is now '+String(cooper.loanBalance)+' points.',
@@ -1296,6 +1336,10 @@ function processLoan() {
       break;
     }
   }
+}
+
+function grantPermissions() {
+  return;
 }
 
 function processAbsence() {
@@ -1312,7 +1356,7 @@ function processAbsence() {
   loadsSheet.getRange(2+cooper.index, absenceCol).setValue(Number(userResponses.absenceAmount));
 
   //TODO: deal with day/days plural thing.
-  MailApp.sendEmail(PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress, 'Absence Change for '+cooper.originalName,
+  POINTS_UTILITIES.sendEmail(PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress, 'Absence Change for '+cooper.originalName,
     cooper.originalName+' is going to be out for '+String(userResponses.absenceAmount)+' days in Cycle '+
     String(userResponses.cycleNum)+'.',
       {name:'Points', replyTo:cooper.emailAddress, cc:cooper.emailAddress});
@@ -1322,6 +1366,11 @@ function processAbsence() {
 
 function happyBirthday() {
   var sameMonthAndDay = function(dateOne, dateTwo) {
+    if (!dateOne) {
+      //TODO: this is a scrappy way of checking whether the co-oper's birthday is defined or not.
+      //Relies on us always putting the co-oper's birthday first.
+      return false;
+    }
     return dateOne.getMonth() == dateTwo.getMonth() && dateOne.getDate() == dateTwo.getDate();
   };
   PSEUDO_GLOBALS = pseudoGlobalsFetcher();
@@ -1345,7 +1394,10 @@ function findChoreSums(cycleNum) {
 //and does some formatting.
   PSEUDO_GLOBALS = pseudoGlobalsFetcher();
   if (typeof cycleNum === 'undefined') {
-    for (var cycleNum = PSEUDO_GLOBALS.currentCycleNum; cycleNum >= PSEUDO_GLOBALS.firstUnlockedCycle; cycleNum--) {
+    //TODO: fix this hardcoded thing.
+    //This is so it will do the next cycle when people are signing up for chores.
+    var lookForward = PSEUDO_GLOBALS.currentCycleNum < 8 ? 1 : 0;
+    for (var cycleNum = PSEUDO_GLOBALS.currentCycleNum+lookForward; cycleNum >= PSEUDO_GLOBALS.firstUnlockedCycle; cycleNum--) {
       findChoreSums(cycleNum);
     }
     return;
@@ -1555,7 +1607,7 @@ function sendReminders() {
         'Please tell '+PSEUDO_GLOBALS.POINTS_STEWARD.originalName+' if there has been a mistake.';
       break;
     }
-    MailApp.sendEmail(choresObject.cooper[remType.toLowerCase()+'Address'], messageSubject, messageBody,
+    POINTS_UTILITIES.sendEmail(choresObject.cooper[remType.toLowerCase()+'Address'], messageSubject, messageBody,
       {name:'Points', replyTo:PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress});
   }
 
@@ -1579,6 +1631,7 @@ function sendReminders() {
     return hasChoresToday;
   }
 
+  //TODO: this should look back at all previous days.
   function lookAtYesterday(todayCol, chart, pointValues) {
     //Column 2 corresponds to the first Sunday of a cycle.
     if (todayCol == 2) {
@@ -1597,7 +1650,9 @@ function sendReminders() {
     var choresPerCooper = sortChores(todayCol, 'Yesterday', chart, pointValues);
     var needSignOff = [];
     choresPerCooper.forEach(function(choresObject) {
-      if (!choresObject) {
+      //As of now choresObject will still exist if the person has no chores. choresObject.chores will be [],
+      //because sortChores will recognize that they've signed off on everything.
+      if (!choresObject.chores.length) {
         return;
       }
       needSignOff.push(choresObject.cooper.originalName);
@@ -1611,7 +1666,7 @@ function sendReminders() {
   var hasChoresToday = lookAtToday(todayCol, chart, pointValues);
   var needSignOff = lookAtYesterday(todayCol, chart, pointValues);
   var messageSubject = 'Chores Report '+POINTS_UTILITIES.truncatedISO(PSEUDO_GLOBALS.todayIs);
-  MailApp.sendEmail(PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress, messageSubject, makeCommaList(hasChoresToday)+
+  POINTS_UTILITIES.sendEmail(PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress, messageSubject, makeCommaList(hasChoresToday)+
     ' have chores today.\n\n'+makeCommaList(needSignOff)+' need sign offs on chores from yesterday.',
     {name:'Points', replyTo:PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress});
 }
