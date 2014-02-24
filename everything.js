@@ -1,4 +1,4 @@
-//Last updated 2014-02-08 by Ben Whitney // ben.e.whitney@post.harvard.edu
+//Last updated 2014-02-24 by Ben Whitney // ben.e.whitney@post.harvard.edu
 var pseudoGlobalsBuilder = function() {
   //Better to deal with a hard-coded value than to crowd the named data ranges with one of these for each cycle.
   this.POINTS_TOTAL_CELL = 'G42';
@@ -113,6 +113,12 @@ var pseudoGlobalsBuilder = function() {
     var info = that.COOPER_INFO[this.index];
     this.originalName     = info['Sign Up Name'];
     this.originalInitials = info['Sign Off Initials'];
+    //TODO: this is to prevent the chart from catching all the blank cells by identifying them with one of these
+    //co-opers. Throwing an error seems like overkill.
+    if (!this.originalName || !this.originalInitials) {
+      throw new Error('Co-oper whose '+queryOperatorKey+' is \''+queryOperator[queryOperatorKey]+
+                      '\' (index '+String(this.index)+') needs a name or initials.'); 
+    }
     this.simplifiedName     = POINTS_UTILITIES.simplify(this.originalName);
     this.simplifiedInitials = POINTS_UTILITIES.simplify(this.originalInitials);
     this.wantsEmailReminders = 'yes' == info['Do you want email reminders?'];
@@ -149,7 +155,7 @@ var pseudoGlobalsBuilder = function() {
     //Feel free to fiddle with it.
     if (that.ALL_CHORES_COLS.indexOf(col) == -1 ||
       (that.DAILY_CHORES_ROWS.indexOf(row) == -1 && that.WEEKLY_CHORES_ROWS.indexOf(row) == -1)) {
-      throw new Error('Invalid row or column.');
+      throw new Error('Invalid row ('+String(row)+') or column ('+String(col)+').');
     }
     this.row = Number(row);
     this.col = Number(col);
@@ -1543,11 +1549,17 @@ function sendReminders() {
   PSEUDO_GLOBALS = pseudoGlobalsFetcher();
   var chart = POINTS_UTILITIES.retrieveRange('Sign Up Data', PSEUDO_GLOBALS.currentCycleNum);
   var pointValues = POINTS_UTILITIES.retrieveRange('Point Values', PSEUDO_GLOBALS.currentCycleNum);
+  var todayCol = -1;
   for (var i = 0; i < 14; i++) {
     if (PSEUDO_GLOBALS.todayIs.getTime() == chart[1][i+1].getTime()) {
-      var todayCol = i+2;
+      todayCol = i+2;
       break;
     }
+  }
+  //Shoule we check for it being undefined/null instead?
+  if (todayCol == -1) {
+    throw new Error('Unable to find column corresponding to today in Cycle '+
+                    String(PSEUDO_GLOBALS.currentCycleNum)+'.');
   }
 
   function sortChores(col, lookingAt, chart, pointValues) {
@@ -1666,6 +1678,7 @@ function sendReminders() {
   var hasChoresToday = lookAtToday(todayCol, chart, pointValues);
   var needSignOff = lookAtYesterday(todayCol, chart, pointValues);
   var messageSubject = 'Chores Report '+POINTS_UTILITIES.truncatedISO(PSEUDO_GLOBALS.todayIs);
+  //TODO: deal with case that no one needs sign offs.
   POINTS_UTILITIES.sendEmail(PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress, messageSubject, makeCommaList(hasChoresToday)+
     ' have chores today.\n\n'+makeCommaList(needSignOff)+' need sign offs on chores from yesterday.',
     {name:'Points', replyTo:PSEUDO_GLOBALS.POINTS_STEWARD.emailAddress});
