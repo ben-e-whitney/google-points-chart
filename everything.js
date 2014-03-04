@@ -1,4 +1,4 @@
-//Last updated 2014-02-24 by Ben Whitney // ben.e.whitney@post.harvard.edu
+//Last updated 2014-03-03 by Ben Whitney // ben.e.whitney@post.harvard.edu
 var pseudoGlobalsBuilder = function() {
   //Better to deal with a hard-coded value than to crowd the named data ranges with one of these for each cycle.
   this.POINTS_TOTAL_CELL = 'G42';
@@ -399,11 +399,11 @@ function pseudoGlobalsFetcher() {
     pseudoGlobals.START_DATE = new Date(pseudoGlobals.START_DATE);
     pseudoGlobals.currentCycleNum = parseInt(1+Math.floor((pseudoGlobals.todayIs.getTime()-pseudoGlobals.START_DATE.getTime())/(1000*60*60*24*14)));
     return pseudoGlobals;
-  };
+  }
 
-  //TODO: get rid of this once you decide how this should work.
+  //TODO: get rid of this once you decide how this should work. Maybe force it to make a new PSEUDO_GLOBALS if it's between 3 AM and 4 AM?
   return updateTimeSensitiveProperties(new pseudoGlobalsBuilder());
-
+  //Maybe don't bother -- not running too too slowly and all this rigamarole will be unnecessary when this is a standalone website (fingers crossed).
   var publicCache = CacheService.getPublicCache();
   //Important: Whenever we write to the spreadsheet, we MUST make the accompanying changes to the actual arrays!! Search absolutely everywhere for .setValues.
   //I've checked over all this -- include a HUGE note about it, but you seem to be good.
@@ -413,7 +413,7 @@ function pseudoGlobalsFetcher() {
     publicCache.put('PSEUDO_GLOBALS', Utilities.jsonStringify(PSEUDO_GLOBALS), 6*60*60);
     return updateTimeSensitiveProperties(PSEUDO_GLOBALS);
   }
-  PSEUDO_GLOBALS = publicCache.get('PSEUDO_GLOBALS')
+  PSEUDO_GLOBALS = publicCache.get('PSEUDO_GLOBALS');
   if (PSEUDO_GLOBALS) {
     PSEUDO_GLOBALS = Utilities.jsonParse(PSEUDO_GLOBALS);
   } else {
