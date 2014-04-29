@@ -285,14 +285,17 @@ var pseudoGlobalsBuilder = function() {
           var x = this.daySignUpCells.hasNext(); 
           if (!(this.j < that.ALL_CHORES_COLS.length-1)) {
           }
-          return x || this.j < that.ALL_CHORES_COLS.length-1;},
+          return x || this.j <= that.ALL_CHORES_COLS.length-1;},
         next: function() {
           if (this.daySignUpCells.nextValue) {
             return this.daySignUpCells.next();
           } else {
             this.j++;
             if (!(this.j < that.ALL_CHORES_COLS.length)) {
-            } 
+              //TODO: was this it? The big bug.
+              //This is needed in case nextValue is false and we don't have any room to look for the next thing?
+              return false;
+            }
             this.daySignUpCells = that.daySignUpCells(that.ALL_CHORES_COLS[this.j], this.chart, this.pointValues);
             //Remember that we must always call hasNext before calling next!
             this.daySignUpCells.hasNext();
@@ -337,6 +340,10 @@ var pseudoGlobalsBuilder = function() {
           }
           this.nextValue = this.findNext();
           if (!this.nextValue) {
+            //TODO: was this actually the problem?
+            //That the next line was missing caused a very, very tricky bug in the case that it was a Saturday with
+            //*no* valid chores (came up when making a toy chart).
+            this.nextValue = false;
           }
           this.nextValueChanged = true;
           return Boolean(this.nextValue);
@@ -352,12 +359,14 @@ var pseudoGlobalsBuilder = function() {
           this.i++;
           if (this.orderedPairs.length > 30 && this.i > 30) {
           }
+          //TODO: would guess this would more clearly be 
+          // if (this.i >= this.orderedPairs.length) {
+          //or
+          // if (!(this.i <= this.orderedPairs.length-1)) {
           if (!(this.i < this.orderedPairs.length)) {
             return false;
           }
           var pair = this.orderedPairs[this.i];
-          if (!pair[1]) {
-          }
           var signUpCell = that.SignUpCell(pair[0], pair[1], chart, pointValues);
           if (signUpCell.valid) {
             return signUpCell;
@@ -371,7 +380,7 @@ var pseudoGlobalsBuilder = function() {
           this.nextValueChanged = false;
         }
       };
-    })(col, chart, pointValues, this);}
+    })(col, chart, pointValues, this)};
   this.POINTS_STEWARD = this.Cooper({'Stewardship': 'Points'});
   //TODO: check that POINTS_STEWARD has a vaild email address. This is relied on in
   //POINTS_UTILITIES.sendEmail.
@@ -391,6 +400,9 @@ function pseudoGlobalsFetcher() {
     //debugger is saying that (right now, at least) todayIs == Date (70349511) and alt_todayIs == Date (70349512). So it would
     //seem that their milliseconds differ. Previously I got this working with Utilities.formatDate, so try that if you have a problem.
     //'Zero out' the date times to midnight (same is done to PSEUDO_GLOBALS.START_DATE).
+    //TODO: test this when it's early in the morning on a Sunday at the beginning of a
+    //chart. Wondering if we should have it set to noon on the current day or something.
+    //To be clear: not positive that this was causing problems.
     pseudoGlobals.todayIs.setHours(0, 0, 0, 0);
     //Find the difference in milliseconds between todayIs and START_DATE, and convert that to difference in fortnights. Find the floor
     //and add it to 1 (we start counting the Charts at 1).
