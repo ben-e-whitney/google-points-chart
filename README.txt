@@ -1,1 +1,1 @@
-For now, see doc folder for information
+For now, see doc folder for information.
