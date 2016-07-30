@@ -1,4 +1,4 @@
-//Last updated 2014-04-29 by Ben Whitney // ben.e.whitney@post.harvard.edu
+//Last updated 2014-05-15 by Ben Whitney // ben.e.whitney@post.harvard.edu
 var pseudoGlobalsBuilder = function() {
   //Better to deal with a hard-coded value than to crowd the named data ranges with one of these for each cycle.
   this.POINTS_TOTAL_CELL = 'G42';
